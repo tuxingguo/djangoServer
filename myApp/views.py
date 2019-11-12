@@ -1,9 +1,12 @@
 from django.http import JsonResponse, HttpRequest, HttpResponse, HttpResponseBadRequest
-from .models import User, Book, Tick_1min, Categoryinfo
+from .models import User, Book, Tick_1min, Categoryinfo, MainContract, ExchangeDate
 import simplejson
 from django.forms.models import model_to_dict
 import re
-import time
+import datetime
+import random
+import math
+from django.db.models import Q
 
 def write_myApp(request):
     data = simplejson.loads(request.body)
@@ -207,7 +210,6 @@ def account(request):
 
     b = User.objects.filter(userName=userName)
     a = len(b)
-
     if a == 0:
         return JsonResponse({"status":"fail","type":"account","currentAuthority":"guest"}, safe=False)
 
@@ -216,8 +218,7 @@ def account(request):
             try:
                 if userName:
                     request.session['userName'] = userName
-                if password:
-                    request.session['password'] = password
+                    request.session['userId'] = b[0].userId
             except:
                 pass
             return JsonResponse({"status": "ok", "type": "account", "currentAuthority": "admin"}, safe=False)
@@ -244,7 +245,6 @@ def register(request):
         jsonObj = { 'status': 'ok', 'currentAuthority': 'user' }
         return JsonResponse(jsonObj)
     except Exception as e:
-        print("e=", e)
         jsonObj = {'status': 'fail', 'currentAuthority': 'guest'}
         return JsonResponse(jsonObj)
 
@@ -263,10 +263,10 @@ def checkUserName(request):
         return JsonResponse({'userNameMsg': 'legal'})
 
 def currentUser(request):
-    userName = request.session.get('userName')
+    userId = request.session.get('userId')
     json_dict = {}
     try:
-        user = User.objects.get(userName = userName)
+        user = User.objects.get(userId = userId)
         json_dict = model_to_dict(user)
         return JsonResponse(json_dict)
     except:
@@ -275,118 +275,161 @@ def currentUser(request):
 
 def getUserInfoById(request):
     data = simplejson.loads(request.body)
-    if data:
-        print("data=",data)
+    if 'userId' in data:
         userId = data['userId']
-        try:
-            user = User.objects.get(userId=userId)
-            json_dict = model_to_dict(user)
-            return JsonResponse(json_dict)
-        except:
-            return JsonResponse({})
     else:
+        userId = request.session.get('userId')
+
+    try:
+        user = User.objects.get(userId=userId)
+        json_dict = model_to_dict(user)
+        return JsonResponse(json_dict)
+    except:
         return JsonResponse({})
 
 
+
+exerciseCount = 10 # 每一次测试跳动K线数
+# kLineNum = 150 # 初始加载K线数
+
+
+
+def getdate(beforeOfDay):
+    today = datetime.datetime.now()
+    # 计算偏移量
+    offset = datetime.timedelta(days=-beforeOfDay)
+    # 获取想要的日期的时间
+    re_date = (today + offset).strftime('%Y%m%d')
+    return re_date
+
+# 获取前一周的所有日期(weeks=1)，获取前N周的所有日期(weeks=N)
+def getBeforeWeekDays(weeks=1):
+    # 0,1,2,3,4,5,6,分别对应周一到周日
+    week = datetime.datetime.now().weekday()
+    days_list = []
+    start = 7 * weeks +  week
+    end = week
+    for index in range(start, end, -1):
+        day =getdate(index)
+        days_list.append(day)
+    return days_list
+
+def queryOriginTickData(request):
+    data = simplejson.loads(request.body)
+    transCode = data['transCode'] # 合约品种
+
+    tradingDayList = []
+    days_list = getBeforeWeekDays()
+    for day in days_list:
+        exchangeDate = ExchangeDate.objects.filter(INIT_DATE=day)
+        if exchangeDate:
+            tradingDayList.append(exchangeDate[0].INIT_DATE)
+    print("tradingDayList=", tradingDayList)
+
+    length = len(tradingDayList) # length 4
+    index = random.randint(0, length-1) # 产生随机数0、1、2、3
+    tradingDay = tradingDayList[index] # 交易日确定
+
+    print("随机交易日=", tradingDay)
+
+    # 首先根据当前日期，取出上一周，然后对比交易日表，拿到上一周所有的交易日，然后随机选一天，以此确定交易日期
+    # 根据交易日期、合约品种，即可获得主力合约号
+
+    mainContractOB = MainContract.objects.filter(category=transCode, tradingDay=tradingDay)
+    mainContract = mainContractOB[0].instrumentId  # 主力合约号确定
+    print("主力合约号=", mainContract)
+
+    count = Tick_1min.objects.filter(TRADINGDAY=tradingDay,INSTRUMENTID=mainContract).count()
+    print("总条数=", count)
+
+    kLineNum = math.floor(count * 0.5)
+    print("kLineNum=", kLineNum)
+    if count < 23:
+        start = 0
+        end = count
+
+    else:
+        start = random.randint(0, count - kLineNum - exerciseCount - 1)
+        end = start + kLineNum
+
+
+    print("k线区间=[", start ,",", end ,"]")
+
+    json_list = queryTick1Min(mainContract, tradingDay, start, end + 1)
+    msg = {"isOver": False, "mainContract": mainContract, "json_list": json_list, "start": start, "end": end, "tradingDay": tradingDay}
+
+    return JsonResponse(msg, safe=False)
+
+
+
 def queryNextTick1MinData(request):
+    global exerciseCount
     data = simplejson.loads(request.body)
-    orderCount = data['orderCount']
 
-    if orderCount < 10:
-        json_list = queryTick1Min(150 + orderCount + 1)
-        msg = {"isOver": False, "json_list": json_list}
+    # print("现在时刻1:", datetime.datetime.now())
+
+    orderCount = data['orderCount']
+    tradingDay = data['tradingDay'] # 日期
+    start = data['start']
+    end = data['end']
+    mainContract = data['mainContract']
+
+    print("mainContract=", mainContract)
+    if orderCount < exerciseCount:
+        json_list = queryTick1Min(mainContract, tradingDay, start, end + orderCount + 1)
+        msg = {"isOver": False, "mainContract": mainContract, "json_list": json_list, "start": start, "end": end, "tradingDay": tradingDay}
     else:
-        json_list = queryTick1Min(161)
-        msg = {"isOver": True, "json_list": json_list}
+        json_list = queryTick1Min(mainContract, tradingDay, start, end+exerciseCount+1)
+        msg = {"isOver": True, "mainContract": mainContract, "json_list": json_list, "start": start, "end": end, "tradingDay": tradingDay}
+
+    # print("现在时刻2:", datetime.datetime.now())
     return JsonResponse(msg, safe=False)
 
-def queryNextTick1MinData2(request):
-    # time.sleep(3)
-    data = simplejson.loads(request.body)
-    orderCount = data['orderCount']
-    profitInPosition = 0 # 本次下单的持仓盈亏
-    profitInClosePosition = 0 # 本次下单的平仓盈亏
 
-    if data['isOrder'] and data['nextTick'] and data['lastTick'] and orderCount <= 10: # 开始计算盈亏
 
-        transUnit = data['transUnit'] # 获得合约乘数
-        transMargin = data['transMargin']# 获得保证金比
-
-        nextTick = data['nextTick']
-        openOrClose = data['openOrClose'] # 开平方向
-        direction = data['direction'] # 买卖方向
-        orderPrice = data['price']  # 下单价格
-        num = data['num']  # 手数
-        contrastPrice = nextTick[2]  # 最新价/收盘价
-
-        if openOrClose == '1' and direction == '1': # 买开,则最新价 - 开仓价
-            profitInPosition = (contrastPrice - orderPrice)*num # 持仓盈亏
-
-        elif openOrClose == '1' and direction == '2': # 卖开,则开仓价 - 最新价
-            profitInPosition = (orderPrice - contrastPrice)*num # 持仓盈亏
-
-        if openOrClose == '2' and direction == '1': # 买平,则用 开仓价 - 平仓价
-            openPositionPrice = data['openPositionPrice'] # 开仓价
-            profitInClosePosition = (openPositionPrice - orderPrice)*num # 平仓盈亏
-
-        elif openOrClose == '2' and direction == '2': # 卖平,则用 平仓价 - 开仓价
-            openPositionPrice = data['openPositionPrice']  # 开仓价
-            profitInClosePosition = (orderPrice - openPositionPrice)*num # 平仓盈亏
-        profitInPosition = profitInPosition*transUnit
-        profitInClosePosition = profitInClosePosition*transUnit
-
-    elif data['isWatch'] and data['positionNum'] > 0 and orderCount <= 10: # 点击观望，若有持仓，需要计算浮动盈亏
-
-        transUnit = data['transUnit']  # 获得合约乘数
-        transMargin = data['transMargin']  # 获得保证金比
-
-        num = data['num']  # 手数
-        direction = data['direction']  # 买卖方向
-        nextTick = data['nextTick']
-        contrastPrice = nextTick[2]  # 最新价/收盘价
-        openPositionPrice = data['openPositionPrice']  # 开仓价
-
-        if direction == '1':
-            profitInPosition = (contrastPrice - openPositionPrice)*num # 持仓盈亏
-        elif direction == '2':
-            profitInPosition = (openPositionPrice - contrastPrice)*num  # 持仓盈亏
-        profitInPosition = profitInPosition*transUnit
-
-    if orderCount < 10:
-        json_list = queryTick1Min(150 + orderCount + 1)
-        msg = {"isOver": False, "profitInPosition": profitInPosition, "profitInClosePosition": profitInClosePosition, "json_list": json_list}
-    else:
-        json_list = queryTick1Min(161)
-        msg = {"isOver": True, "profitInPosition": profitInPosition, "profitInClosePosition": profitInClosePosition, "json_list": json_list}
-    return JsonResponse(msg, safe=False)
-
+def getMainContract(tradingDay, transCode): # 根据品种和时间，获取主力合约
+    mgr = MainContract.objects
+    mainContractOB = mgr.get(category=transCode, tradingDay=tradingDay)
+    instrumentId = mainContractOB.instrumentId
+    return instrumentId
 
 def calculateProfit(request):
     data = simplejson.loads(request.body)
     print("data=", data)
     if data:
         userId = data['userId']
-        profitInPosition = data['profitInPosition']
-        profitInClosePosition = data['profitInClosePosition']
-        bond = data['bond']
-        availableFund = data['availableFund']
-        currentInterest = data['currentInterest']
         user = User.objects.get(userId=userId)
-        user.profitInPosition = profitInPosition
-        user.profitInClosePosition += profitInClosePosition
-        user.bond += bond
-        user.currentInterest = currentInterest
-        user.availableFund = availableFund
+
+        if 'profitInPosition' in data:
+            profitInPosition = data['profitInPosition']
+            user.profitInPosition = profitInPosition  # 覆盖持仓盈亏
+
+        if 'profitInClosePosition' in data:
+            profitInClosePosition = data['profitInClosePosition']
+            user.profitInClosePosition = profitInClosePosition  # 叠加平仓盈亏
+
+        if 'bond' in data:
+            bond = data['bond']
+            user.bond = bond
+
+        if 'availableFund' in data:
+            availableFund = data['availableFund']
+            user.availableFund = availableFund
+
+        if 'currentInterest' in data:
+            currentInterest = data['currentInterest']
+            user.currentInterest = currentInterest
+
         user.save()
         return JsonResponse({"status": "ok"}, safe=False)
     else:
         return JsonResponse({"status": "error"}, safe=False)
 
 
-def queryTick1Min(num):
+def queryTick1Min(mainContract,tradingDay, start, num):
     mgr = Tick_1min.objects
     qs = mgr.values_list('TRADINGDAY','OPENPRICE','CLOSEPRICE','LOWESTPRICE','HIGHESTPRICE','VOLUME','UPDATETIME',
-                         flat=False).filter(TRADINGDAY='20191014',INSTRUMENTID='ag1912').order_by('TRADINGDAY','UPDATETIME')[:num]
+                         flat=False).filter(TRADINGDAY=tradingDay,INSTRUMENTID=mainContract).order_by('TRADINGDAY','UPDATETIME')[start:num]
 
     qs = list(qs)
     return qs
@@ -410,12 +453,16 @@ def getKind(instrumentID): # 得到品种
 
 
 def queryCategoryList(request): # 得到品种列表
-    json_list = queryAllCategoryList()
+    data = simplejson.loads(request.body)
+    keyWord = None
+    if "key" in data:
+        keyWord = data["key"]
+    json_list = queryAllCategoryList(keyWord)
     return JsonResponse(json_list, safe=False)
 
-def queryAllCategoryList():
+def queryAllCategoryList(keyWord):
     mgr = Categoryinfo.objects
-    qs = mgr.all()
+    qs = mgr.filter(Q(TRANSCODE__icontains=keyWord) | Q(TRANSETYPE__icontains=keyWord))
 
     json_list = []
     for category in qs:

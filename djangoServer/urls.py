@@ -38,6 +38,7 @@ urlpatterns = [
     path('user/currentUser', views.currentUser),
     path('user/getUserInfoById', views.getUserInfoById),
 
+    path('kLine/queryOriginTickData', views.queryOriginTickData),
     path('kLine/queryNextTick1MinData', views.queryNextTick1MinData),
     path('kLine/calculateProfit', views.calculateProfit),
 

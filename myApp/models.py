@@ -103,7 +103,22 @@ class Categoryinfo(models.Model):
     CURRENCY = models.CharField(max_length=20, null=True)
     CONTRTYPE = models.CharField(max_length=20, null=True)
     CONTRSUBTYPE = models.CharField(max_length=30, null=True)
+    HYCS = models.CharField(max_length=20, null=True)
+    ZXDBJ = models.CharField(max_length=20, null=True)
+    BZJB = models.CharField(max_length=20, null=True)
+
+class MainContract(models.Model):
+    class Meta:
+        db_table = 'maincontract'
+
+    category = models.CharField(max_length=10, null=True)
+    symbol = models.CharField(max_length=20, null=True)
+    instrumentId = models.CharField(max_length=20, null=True)
+    tradingDay = models.CharField(max_length=30, null=True)
 
 
+class ExchangeDate(models.Model):
+    class Meta:
+        db_table = 'exchange_date'
 
-
+    INIT_DATE = models.CharField(max_length=20, null=True)
