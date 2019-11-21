@@ -251,15 +251,18 @@ def register(request):
 
 def checkUserName(request):
     data = simplejson.loads(request.body)
-    userName = data['value']
-    print("userName=", userName)
-    mgr = User.objects
+    if 'value' in data:
+        userName = data['value']
+        print("userName=", userName)
+        mgr = User.objects
 
-    user = mgr.filter(userName = userName)
+        user = mgr.filter(userName = userName)
 
-    if user: # 说明存在
-        return JsonResponse({'userNameMsg': 'illegal'})
-    else: # 说明不存在
+        if user: # 说明存在
+            return JsonResponse({'userNameMsg': 'illegal'})
+        else: # 说明不存在
+            return JsonResponse({'userNameMsg': 'legal'})
+    else:
         return JsonResponse({'userNameMsg': 'legal'})
 
 def currentUser(request):
@@ -319,7 +322,16 @@ def queryOriginTickData(request):
     transCode = data['transCode'] # 合约品种
 
     tradingDayList = []
-    days_list = getBeforeWeekDays()
+    # days_list = getBeforeWeekDays()
+    days_list = []
+    days_list.append('20191104')
+    days_list.append('20191105')
+    days_list.append('20191106')
+    days_list.append('20191107')
+    days_list.append('20191108')
+    days_list.append('20191109')
+    days_list.append('20191110')
+
     for day in days_list:
         exchangeDate = ExchangeDate.objects.filter(INIT_DATE=day)
         if exchangeDate:
@@ -428,8 +440,8 @@ def calculateProfit(request):
 
 def queryTick1Min(mainContract,tradingDay, start, num):
     mgr = Tick_1min.objects
-    qs = mgr.values_list('TRADINGDAY','OPENPRICE','CLOSEPRICE','LOWESTPRICE','HIGHESTPRICE','VOLUME','UPDATETIME',
-                         flat=False).filter(TRADINGDAY=tradingDay,INSTRUMENTID=mainContract).order_by('TRADINGDAY','UPDATETIME')[start:num]
+    qs = mgr.values_list('ACTIONDAY','OPENPRICE','CLOSEPRICE','LOWESTPRICE','HIGHESTPRICE','VOLUME','UPDATETIME',
+                         flat=False).filter(TRADINGDAY=tradingDay,INSTRUMENTID=mainContract).order_by('ACTIONDAY','TRADINGDAY','UPDATETIME')[start:num]
 
     qs = list(qs)
     return qs
@@ -469,7 +481,6 @@ def queryAllCategoryList(keyWord):
         json_dict = model_to_dict(category)
         json_list.append(json_dict)
     return json_list
-
 
 
 
