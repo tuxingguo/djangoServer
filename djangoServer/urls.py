@@ -43,4 +43,8 @@ urlpatterns = [
     path('kLine/calculateProfit', views.calculateProfit),
 
     path('category/queryCategoryList', views.queryCategoryList),
+
+    path('updateInfo/updateMyInfo', views.updateMyInfo),
+    path('updateInfo/updatePassword', views.updatePassword),
+    path('updateInfo/updateMyFund', views.updateMyFund),
 ]

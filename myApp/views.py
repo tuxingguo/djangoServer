@@ -482,5 +482,43 @@ def queryAllCategoryList(keyWord):
         json_list.append(json_dict)
     return json_list
 
+# 修改基本信息
+def updateMyInfo(request):
+    data = simplejson.loads(request.body)
+    print("data=", data)
+
+    userId = data['userId']
+    userName = data['userName']
+    email = data['email']
+    profile = data['profile']
+
+    User.objects.filter(userId=userId).update(userName=userName, email=email,profile=profile)
+
+    return JsonResponse({'status': 200})
+
+# 修改密码
+def updatePassword(request):
+    data = simplejson.loads(request.body)
+    print("data=", data)
+
+    userId = data['userId']
+    password = data['password']
+
+    User.objects.filter(userId=userId).update(password=password)
+
+    return JsonResponse({'status': 200})
 
 
+def updateMyFund(request):
+    data = simplejson.loads(request.body)
+    userId = data['userId']
+    fund = data['fund']
+    mgr = User.objects
+
+    user = mgr.get(userId=userId)
+    availableFund = user.availableFund + fund
+    currentInterest = user.currentInterest + fund
+
+    User.objects.filter(userId=userId).update(availableFund = availableFund, currentInterest = currentInterest)
+
+    return JsonResponse({'status': 200})
