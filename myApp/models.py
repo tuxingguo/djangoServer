@@ -27,6 +27,7 @@ class User(models.Model):
     currentInterest = models.FloatField(null=True)  # 当前权益
     availableFund = models.FloatField(null=True)  # 可用资金
     profile = models.CharField(max_length = 500, null=True)
+    PwdStrength = models.CharField(max_length = 10, null=True)
 
     def __repr__(self):
         return "".format(self.userId, self.phone)

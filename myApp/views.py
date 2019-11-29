@@ -7,6 +7,7 @@ import datetime
 import random
 import math
 from django.db.models import Q
+from django.contrib.auth.hashers import make_password, check_password
 
 def write_myApp(request):
     data = simplejson.loads(request.body)
@@ -214,7 +215,7 @@ def account(request):
         return JsonResponse({"status":"fail","type":"account","currentAuthority":"guest"}, safe=False)
 
     else:
-        if b[0].password == password:  # 密码成功匹配
+        if check_password(password, b[0].password):  # 密码成功匹配
             try:
                 if userName:
                     request.session['userName'] = userName
@@ -232,7 +233,11 @@ def register(request):
     user = User()
     user.userName = data['userName']
     user.email = data['email']
-    user.password = data['password']
+    if len(data['password']) <  10:
+        user.PwdStrength = 'middle'
+    elif len(data['password']) >= 10:
+        user.PwdStrength = 'strong'
+    user.password = make_password(data['password'])
     user.avatar = 'avatar.png'
     user.InitialInterest = 1000000 # 设置期初权益
     user.bond = 0 # 保证金
@@ -245,6 +250,7 @@ def register(request):
         jsonObj = { 'status': 'ok', 'currentAuthority': 'user' }
         return JsonResponse(jsonObj)
     except Exception as e:
+        print("e=", e)
         jsonObj = {'status': 'fail', 'currentAuthority': 'guest'}
         return JsonResponse(jsonObj)
 
@@ -322,15 +328,15 @@ def queryOriginTickData(request):
     transCode = data['transCode'] # 合约品种
 
     tradingDayList = []
-    # days_list = getBeforeWeekDays()
-    days_list = []
-    days_list.append('20191104')
-    days_list.append('20191105')
-    days_list.append('20191106')
-    days_list.append('20191107')
-    days_list.append('20191108')
-    days_list.append('20191109')
-    days_list.append('20191110')
+    days_list = getBeforeWeekDays()
+    # days_list = []
+    # days_list.append('20191104')
+    # days_list.append('20191105')
+    # days_list.append('20191106')
+    # days_list.append('20191107')
+    # days_list.append('20191108')
+    # days_list.append('20191109')
+    # days_list.append('20191110')
 
     for day in days_list:
         exchangeDate = ExchangeDate.objects.filter(INIT_DATE=day)
@@ -492,9 +498,11 @@ def updateMyInfo(request):
     email = data['email']
     profile = data['profile']
 
-    User.objects.filter(userId=userId).update(userName=userName, email=email,profile=profile)
-
-    return JsonResponse({'status': 200})
+    try:
+        User.objects.filter(userId=userId).update(userName=userName, email=email,profile=profile)
+        return JsonResponse({'status': 200})
+    except Exception as e:
+        return JsonResponse({'status': 500})
 
 # 修改密码
 def updatePassword(request):
@@ -504,10 +512,14 @@ def updatePassword(request):
     userId = data['userId']
     password = data['password']
 
-    User.objects.filter(userId=userId).update(password=password)
+    PwdStrength = 'middle' if len(password) < 10 else 'strong'
 
-    return JsonResponse({'status': 200})
-
+    try:
+        mpwd = make_password(password)
+        User.objects.filter(userId=userId).update(password=mpwd, PwdStrength=PwdStrength)
+        return JsonResponse({'status': 200})
+    except Exception as e:
+        return JsonResponse({'status': 500})
 
 def updateMyFund(request):
     data = simplejson.loads(request.body)
@@ -519,6 +531,20 @@ def updateMyFund(request):
     availableFund = user.availableFund + fund
     currentInterest = user.currentInterest + fund
 
-    User.objects.filter(userId=userId).update(availableFund = availableFund, currentInterest = currentInterest)
+    try:
+        User.objects.filter(userId=userId).update(availableFund = availableFund, currentInterest = currentInterest)
+        return JsonResponse({'status': 200})
+    except Exception as e:
+        return JsonResponse({'status': 500})
 
-    return JsonResponse({'status': 200})
+def checkOldPassword(request):
+    data = simplejson.loads(request.body)
+    userId = data['userId']
+    pwd = data['value']
+
+    user = User.objects.filter(userId=userId)
+
+    if check_password(pwd, user[0].password):  # 密码成功匹配
+        return JsonResponse({'pwd_bool': True})
+    else:
+        return JsonResponse({'pwd_bool': False})
