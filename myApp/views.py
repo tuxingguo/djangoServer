@@ -328,15 +328,15 @@ def queryOriginTickData(request):
     transCode = data['transCode'] # 合约品种
 
     tradingDayList = []
-    days_list = getBeforeWeekDays()
-    # days_list = []
-    # days_list.append('20191104')
-    # days_list.append('20191105')
-    # days_list.append('20191106')
-    # days_list.append('20191107')
-    # days_list.append('20191108')
-    # days_list.append('20191109')
-    # days_list.append('20191110')
+    # days_list = getBeforeWeekDays()
+    days_list = []
+    days_list.append('20191125')
+    days_list.append('20191126')
+    days_list.append('20191127')
+    days_list.append('20191128')
+    days_list.append('20191129')
+    days_list.append('20191130')
+    days_list.append('20191201')
 
     for day in days_list:
         exchangeDate = ExchangeDate.objects.filter(INIT_DATE=day)
