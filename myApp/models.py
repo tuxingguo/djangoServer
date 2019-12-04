@@ -28,7 +28,7 @@ class User(models.Model):
     availableFund = models.FloatField(null=True)  # 可用资金
     profile = models.CharField(max_length = 500, null=True)
     PwdStrength = models.CharField(max_length = 10, null=True)
-
+    registerTime = models.CharField(max_length = 30, null=True)
     def __repr__(self):
         return "".format(self.userId, self.phone)
 

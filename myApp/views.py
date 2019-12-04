@@ -245,6 +245,10 @@ def register(request):
     user.profitInClosePosition = 0 # 平仓盈亏
     user.currentInterest = 1000000 # 当前权益
     user.availableFund = 1000000 # 可用资金
+
+    registerTime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    user.registerTime = registerTime
+
     try:
         user.save()
         jsonObj = { 'status': 'ok', 'currentAuthority': 'user' }
@@ -328,15 +332,15 @@ def queryOriginTickData(request):
     transCode = data['transCode'] # 合约品种
 
     tradingDayList = []
-    # days_list = getBeforeWeekDays()
-    days_list = []
-    days_list.append('20191125')
-    days_list.append('20191126')
-    days_list.append('20191127')
-    days_list.append('20191128')
-    days_list.append('20191129')
-    days_list.append('20191130')
-    days_list.append('20191201')
+    days_list = getBeforeWeekDays()
+    # days_list = []
+    # days_list.append('20191118')
+    # days_list.append('20191119')
+    # days_list.append('20191120')
+    # days_list.append('20191121')
+    # days_list.append('20191122')
+    # days_list.append('20191123')
+    # days_list.append('20191124')
 
     for day in days_list:
         exchangeDate = ExchangeDate.objects.filter(INIT_DATE=day)
@@ -362,7 +366,7 @@ def queryOriginTickData(request):
 
     kLineNum = math.floor(count * 0.5)
     print("kLineNum=", kLineNum)
-    if count < 23:
+    if count <= 23:
         start = 0
         end = count
 
