@@ -49,4 +49,6 @@ urlpatterns = [
     path('updateInfo/updateMyFund', views.updateMyFund),
     path('myAccount/checkOldPassword', views.checkOldPassword),
 
+    path('order/saveOrder', views.saveOrder),
+    path('order/trainRecord', views.trainRecord),
 ]

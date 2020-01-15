@@ -1,5 +1,5 @@
 from django.http import JsonResponse, HttpRequest, HttpResponse, HttpResponseBadRequest
-from .models import User, Book, Tick_1min, Categoryinfo, MainContract, ExchangeDate
+from .models import User, Book, Tick_1min, Categoryinfo, MainContract, ExchangeDate, OrderDetailRecord, TrainRecord
 import simplejson
 from django.forms.models import model_to_dict
 import re
@@ -332,15 +332,15 @@ def queryOriginTickData(request):
     transCode = data['transCode'] # 合约品种
 
     tradingDayList = []
-    days_list = getBeforeWeekDays()
-    # days_list = []
-    # days_list.append('20191118')
-    # days_list.append('20191119')
-    # days_list.append('20191120')
-    # days_list.append('20191121')
-    # days_list.append('20191122')
-    # days_list.append('20191123')
-    # days_list.append('20191124')
+    # days_list = getBeforeWeekDays()
+    days_list = []
+    days_list.append('20191230')
+    days_list.append('20191231')
+    days_list.append('20200101')
+    days_list.append('20200102')
+    days_list.append('20200103')
+    days_list.append('20200104')
+    days_list.append('20200105')
 
     for day in days_list:
         exchangeDate = ExchangeDate.objects.filter(INIT_DATE=day)
@@ -552,3 +552,76 @@ def checkOldPassword(request):
         return JsonResponse({'pwd_bool': True})
     else:
         return JsonResponse({'pwd_bool': False})
+
+# 记录下单信息
+def saveOrder(request):
+    data = simplejson.loads(request.body)
+    # print("data=", data)
+    if data:
+        orderDetailRecord = OrderDetailRecord()
+
+        if 'userId'in data:
+            orderDetailRecord.userId = data['userId']
+        if 'trainId' in data:
+            orderDetailRecord.trainId = data['trainId']
+        if 'action' in data:
+            orderDetailRecord.action = data['action']
+        if 'instrumentId' in data:
+            orderDetailRecord.instrumentId = data['instrumentId']
+        if 'direction' in data:
+            orderDetailRecord.direction = data['direction']
+        if 'openOrClose' in data:
+            orderDetailRecord.openOrClose = data['openOrClose']
+        if 'handNum' in data:
+            orderDetailRecord.handNum = data['handNum']
+        if 'bond' in data:
+            orderDetailRecord.bond = data['bond']
+        if 'profitInPosition' in data:
+            orderDetailRecord.profitInPosition = data['profitInPosition']
+        if 'profitInClosePosition' in data:
+            orderDetailRecord.profitInClosePosition = data['profitInClosePosition']
+        if 'currentInterest' in data:
+            orderDetailRecord.currentInterest = data['currentInterest']
+        if 'availableFund' in data:
+            orderDetailRecord.availableFund = data['availableFund']
+
+        orderDetailRecord.save()
+        return JsonResponse({"status": "ok"}, safe=False)
+    else:
+        return JsonResponse({"status": "error"}, safe=False)
+
+# 记录训练信息
+def trainRecord(request):
+    data = simplejson.loads(request.body)
+    print("data=", data)
+    if data:
+        trainRecord = TrainRecord()
+
+        if 'trainId'in data:
+            trainRecord.trainId = data['trainId']
+        if 'userId'in data:
+            trainRecord.userId = data['userId']
+        if 'transCode' in data:
+            trainRecord.transCode = data['transCode']
+        if 'bond' in data:
+            trainRecord.bond = data['bond']
+        if 'profitInPosition' in data:
+            trainRecord.profitInPosition = data['profitInPosition']
+        if 'profitInClosePosition' in data:
+            trainRecord.profitInClosePosition = data['profitInClosePosition']
+        if 'currentInterest' in data:
+            trainRecord.currentInterest = data['currentInterest']
+        if 'availableFund' in data:
+            trainRecord.availableFund = data['availableFund']
+        if 'rateOfRetracement' in data:
+            trainRecord.rateOfRetracement = data['rateOfRetracement']
+        if 'rateOfReturn' in data:
+            trainRecord.rateOfReturn = data['rateOfReturn']
+        if 'trainOverTime' in data:
+            trainRecord.trainOverTime = data['trainOverTime']
+
+        trainRecord.save()
+        return JsonResponse({"status": "ok"}, safe=False)
+    else:
+        return JsonResponse({"status": "error"}, safe=False)
+

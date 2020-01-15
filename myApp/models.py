@@ -124,3 +124,38 @@ class ExchangeDate(models.Model):
         db_table = 'exchange_date'
 
     INIT_DATE = models.CharField(max_length=20, null=True)
+
+class TrainRecord(models.Model):
+    class Meta:
+        db_table = 'trainrecord'
+
+    trainId = models.CharField(primary_key=True,max_length=50, db_column='trainId') # 训练ID
+
+    userId = models.IntegerField(null=True) # 用户ID
+    transCode = models.CharField(max_length=30, null=True) # 品种
+    bond = models.FloatField(null=True)  # 保证金
+    profitInPosition = models.FloatField(null=True)  # 持仓盈亏
+    profitInClosePosition = models.FloatField(null=True)  # 平仓盈亏
+    currentInterest = models.FloatField(null=True)  # 当前权益
+    availableFund = models.FloatField(null=True)  # 可用资金
+    rateOfRetracement = models.FloatField(null=True)  # 最大回撤率
+    rateOfReturn = models.FloatField(null=True)  # 最大收益率
+    trainOverTime = models.CharField(max_length=30, null=True)  # 训练结束时间
+
+class OrderDetailRecord(models.Model):
+    class Meta:
+        db_table = 'orderdetailrecord'
+
+    id = models.IntegerField(primary_key=True, db_column='id')
+    userId = models.IntegerField(null=False)
+    trainId = models.CharField(null=False, max_length=50)  # 训练ID
+    action = models.CharField(max_length=10, null=True) # 下单/观望
+    instrumentId = models.CharField(max_length=20, null=True)  # 合约号
+    direction = models.CharField(max_length=10, null=True)  # 方向
+    openOrClose = models.CharField(max_length=10, null=True)  # 开平仓
+    handNum = models.IntegerField(null=True)  # 手数
+    bond = models.FloatField(null=True)  # 保证金
+    profitInPosition = models.FloatField(null=True)  # 持仓盈亏
+    profitInClosePosition = models.FloatField(null=True)  # 平仓盈亏
+    currentInterest = models.FloatField(null=True)
+    availableFund = models.FloatField(null=True)
