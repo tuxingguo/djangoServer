@@ -51,4 +51,9 @@ urlpatterns = [
 
     path('order/saveOrder', views.saveOrder),
     path('order/trainRecord', views.trainRecord),
+
+    path('user/getRateOfReturn', views.getRateOfReturn),
+    path('user/getProfitByUserId', views.getProfitByUserId),
+    path('user/getCategoryProfit', views.getCategoryProfit),
+
 ]

@@ -6,7 +6,7 @@ import re
 import datetime
 import random
 import math
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.contrib.auth.hashers import make_password, check_password
 
 def write_myApp(request):
@@ -619,9 +619,63 @@ def trainRecord(request):
             trainRecord.rateOfReturn = data['rateOfReturn']
         if 'trainOverTime' in data:
             trainRecord.trainOverTime = data['trainOverTime']
+        if 'initialInterest' in data:
+            trainRecord.initialInterest = data['initialInterest']
+        if 'allProfit' in data:
+            trainRecord.allProfit = data['allProfit']
+        if 'transType' in data:
+            trainRecord.transType = data['transType']
 
         trainRecord.save()
         return JsonResponse({"status": "ok"}, safe=False)
     else:
         return JsonResponse({"status": "error"}, safe=False)
 
+
+def getRateOfReturn(request):
+    data = simplejson.loads(request.body)
+    if 'userId' in data:
+        userId = data['userId']
+    else:
+        userId = request.session.get('userId')
+
+    mgr = TrainRecord.objects
+    qs = mgr.values('rateOfReturn', 'trainOverTime').filter(userId = userId).order_by('trainOverTime')
+    qs = list(qs)
+
+    rateOfReturn = [item['rateOfReturn'] for item in qs]
+    trainOverTime = [item['trainOverTime'] for item in qs]
+
+    msg = {"rateOfReturn": rateOfReturn, "trainOverTime": trainOverTime}
+    return JsonResponse(msg, safe=False)
+
+
+def getProfitByUserId(request):
+    data = simplejson.loads(request.body)
+    if 'userId' in data:
+        userId = data['userId']
+    else:
+        userId = request.session.get('userId')
+    mgr = TrainRecord.objects
+    qs = mgr.values('allProfit', 'trainOverTime').filter(userId=userId).order_by('trainOverTime')
+    qs = list(qs)
+
+    allProfit = [item['allProfit'] for item in qs]
+    trainOverTime = [item['trainOverTime'] for item in qs]
+
+    msg = {"allProfit": allProfit, "trainOverTime": trainOverTime}
+    return JsonResponse(msg, safe=False)
+
+def getCategoryProfit(request):
+    data = simplejson.loads(request.body)
+    if 'userId' in data:
+        userId = data['userId']
+    else:
+        userId = request.session.get('userId')
+
+    mgr = TrainRecord.objects
+    qs = mgr.values("transType").annotate(total=Sum("allProfit")).values_list('transType', 'total', flat=False).filter(userId=userId).order_by('-total')
+    cateDataList = list(qs)
+
+    msg = {"cateDataList": cateDataList}
+    return JsonResponse(msg, safe=False)

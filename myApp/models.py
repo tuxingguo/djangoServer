@@ -133,6 +133,8 @@ class TrainRecord(models.Model):
 
     userId = models.IntegerField(null=True) # 用户ID
     transCode = models.CharField(max_length=30, null=True) # 品种
+    transType = models.CharField(max_length=30, null=True) # 品种名称
+    initialInterest = models.FloatField(null=True)
     bond = models.FloatField(null=True)  # 保证金
     profitInPosition = models.FloatField(null=True)  # 持仓盈亏
     profitInClosePosition = models.FloatField(null=True)  # 平仓盈亏
@@ -141,6 +143,7 @@ class TrainRecord(models.Model):
     rateOfRetracement = models.FloatField(null=True)  # 最大回撤率
     rateOfReturn = models.FloatField(null=True)  # 最大收益率
     trainOverTime = models.CharField(max_length=30, null=True)  # 训练结束时间
+    allProfit = models.FloatField(null=True)  # 总盈亏
 
 class OrderDetailRecord(models.Model):
     class Meta:
