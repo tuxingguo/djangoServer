@@ -55,5 +55,7 @@ urlpatterns = [
     path('user/getRateOfReturn', views.getRateOfReturn),
     path('user/getProfitByUserId', views.getProfitByUserId),
     path('user/getCategoryProfit', views.getCategoryProfit),
-
+    path('user/getCategoryHand', views.getCategoryHand),
+    path('user/getRetracement', views.getRetracement),
+    path('user/getAccountRisk', views.getAccountRisk),
 ]

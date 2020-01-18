@@ -142,8 +142,10 @@ class TrainRecord(models.Model):
     availableFund = models.FloatField(null=True)  # 可用资金
     rateOfRetracement = models.FloatField(null=True)  # 最大回撤率
     rateOfReturn = models.FloatField(null=True)  # 最大收益率
+    rateOfRisk = models.FloatField(null=True)  # 风险度
     trainOverTime = models.CharField(max_length=30, null=True)  # 训练结束时间
     allProfit = models.FloatField(null=True)  # 总盈亏
+    allHandNum = models.IntegerField(null=True)  # 总手数
 
 class OrderDetailRecord(models.Model):
     class Meta:
@@ -161,4 +163,6 @@ class OrderDetailRecord(models.Model):
     profitInPosition = models.FloatField(null=True)  # 持仓盈亏
     profitInClosePosition = models.FloatField(null=True)  # 平仓盈亏
     currentInterest = models.FloatField(null=True)
+    rateOfRisk = models.FloatField(null=True)  # 风险度
     availableFund = models.FloatField(null=True)
+    orderTime = models.CharField(max_length=30, null=True)

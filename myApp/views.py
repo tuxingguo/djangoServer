@@ -6,7 +6,7 @@ import re
 import datetime
 import random
 import math
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Max, Min
 from django.contrib.auth.hashers import make_password, check_password
 
 def write_myApp(request):
@@ -205,7 +205,7 @@ def queryAllBook():
 
 def account(request):
     data = simplejson.loads(request.body)
-    print("data=", data)
+    # print("data=", data)
     userName = data['userName']
     password = data['password']
 
@@ -417,7 +417,7 @@ def getMainContract(tradingDay, transCode): # 根据品种和时间，获取主�
 
 def calculateProfit(request):
     data = simplejson.loads(request.body)
-    print("data=", data)
+    # print("data=", data)
     if data:
         userId = data['userId']
         user = User.objects.get(userId=userId)
@@ -495,7 +495,7 @@ def queryAllCategoryList(keyWord):
 # 修改基本信息
 def updateMyInfo(request):
     data = simplejson.loads(request.body)
-    print("data=", data)
+    # print("data=", data)
 
     userId = data['userId']
     userName = data['userName']
@@ -511,7 +511,7 @@ def updateMyInfo(request):
 # 修改密码
 def updatePassword(request):
     data = simplejson.loads(request.body)
-    print("data=", data)
+    # print("data=", data)
 
     userId = data['userId']
     password = data['password']
@@ -556,7 +556,6 @@ def checkOldPassword(request):
 # 记录下单信息
 def saveOrder(request):
     data = simplejson.loads(request.body)
-    # print("data=", data)
     if data:
         orderDetailRecord = OrderDetailRecord()
 
@@ -574,31 +573,64 @@ def saveOrder(request):
             orderDetailRecord.openOrClose = data['openOrClose']
         if 'handNum' in data:
             orderDetailRecord.handNum = data['handNum']
-        if 'bond' in data:
-            orderDetailRecord.bond = data['bond']
         if 'profitInPosition' in data:
             orderDetailRecord.profitInPosition = data['profitInPosition']
         if 'profitInClosePosition' in data:
             orderDetailRecord.profitInClosePosition = data['profitInClosePosition']
         if 'currentInterest' in data:
             orderDetailRecord.currentInterest = data['currentInterest']
+            if 'bond' in data:
+                bond = data['bond']
+                orderDetailRecord.bond = bond  # 计算风险度
+                rateOfRisk = round(bond/data['currentInterest'] * 100, 4)
+                orderDetailRecord.rateOfRisk = rateOfRisk
+
         if 'availableFund' in data:
             orderDetailRecord.availableFund = data['availableFund']
+        if 'orderTime' in data:
+            orderDetailRecord.orderTime = data['orderTime']
 
         orderDetailRecord.save()
         return JsonResponse({"status": "ok"}, safe=False)
     else:
         return JsonResponse({"status": "error"}, safe=False)
 
+def calculateRetrace(dataList):
+    chaList = []
+    topValue = dataList[0]
+    for item in dataList[1:]:
+        if item > topValue:
+            topValue = item
+        else:
+            cha = round((topValue - item) / topValue * 100, 4)
+            chaList.append(cha)
+    return max(chaList)
+
 # 记录训练信息
 def trainRecord(request):
     data = simplejson.loads(request.body)
-    print("data=", data)
+    # print("data=", data)
     if data:
         trainRecord = TrainRecord()
 
         if 'trainId'in data:
-            trainRecord.trainId = data['trainId']
+            trainId = data['trainId']
+            trainRecord.trainId = trainId
+            total = OrderDetailRecord.objects.filter(trainId=trainId, openOrClose='open').aggregate(nums=Sum('handNum'))
+            allHandNum = total['nums']
+            trainRecord.allHandNum = allHandNum # 计算手数
+
+            # 计算资金回撤率
+            qs = OrderDetailRecord.objects.values_list('currentInterest', flat=True).filter(trainId=trainId).order_by('orderTime')
+            currenList = list(qs)
+            rateOfRetrace = calculateRetrace(currenList)
+            trainRecord.rateOfRetracement = rateOfRetrace
+
+            # 计算风险度
+            maxRisk = OrderDetailRecord.objects.filter(trainId=trainId).aggregate(maxRisk=Max('rateOfRisk'))
+            rateOfRisk = maxRisk['maxRisk']
+            trainRecord.rateOfRisk = rateOfRisk
+
         if 'userId'in data:
             trainRecord.userId = data['userId']
         if 'transCode' in data:
@@ -616,7 +648,7 @@ def trainRecord(request):
         if 'rateOfRetracement' in data:
             trainRecord.rateOfRetracement = data['rateOfRetracement']
         if 'rateOfReturn' in data:
-            trainRecord.rateOfReturn = data['rateOfReturn']
+            trainRecord.rateOfReturn = round(data['rateOfReturn'], 4)
         if 'trainOverTime' in data:
             trainRecord.trainOverTime = data['trainOverTime']
         if 'initialInterest' in data:
@@ -678,4 +710,42 @@ def getCategoryProfit(request):
     cateDataList = list(qs)
 
     msg = {"cateDataList": cateDataList}
+    return JsonResponse(msg, safe=False)
+
+def getCategoryHand(request):
+    data = simplejson.loads(request.body)
+    if 'userId' in data:
+        userId = data['userId']
+    else:
+        userId = request.session.get('userId')
+    mgr = TrainRecord.objects
+    qs = mgr.values("transType").annotate(totalProfit=Sum("allProfit"), totalHand=Sum("allHandNum")).values_list('transType', 'totalProfit','totalHand', flat=False).filter(
+        userId=userId).order_by('-totalProfit')
+    handDataList = list(qs)
+
+    msg = {"handDataList": handDataList}
+    return JsonResponse(msg, safe=False)
+
+def  getRetracement(request):
+    data = simplejson.loads(request.body)
+    if 'userId' in data:
+        userId = data['userId']
+    else:
+        userId = request.session.get('userId')
+    mgr = TrainRecord.objects
+    qs = mgr.values_list('rateOfRetracement', flat=True).filter(userId=userId).order_by('trainOverTime')
+    rateOfRetracement = list(qs)
+    msg = {"rateOfRetracement": rateOfRetracement}
+    return JsonResponse(msg, safe=False)
+
+def getAccountRisk(request):
+    data = simplejson.loads(request.body)
+    if 'userId' in data:
+        userId = data['userId']
+    else:
+        userId = request.session.get('userId')
+    mgr = TrainRecord.objects
+    qs = mgr.values_list('rateOfRisk', flat=True).filter(userId=userId).order_by('trainOverTime')
+    rateOfRisk = list(qs)
+    msg = {"rateOfRisk": rateOfRisk}
     return JsonResponse(msg, safe=False)
