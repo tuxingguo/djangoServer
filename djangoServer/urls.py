@@ -58,4 +58,5 @@ urlpatterns = [
     path('user/getCategoryHand', views.getCategoryHand),
     path('user/getRetracement', views.getRetracement),
     path('user/getAccountRisk', views.getAccountRisk),
+    path('user/getUserSituation', views.getUserSituation)
 ]

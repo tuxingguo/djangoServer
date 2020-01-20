@@ -6,7 +6,7 @@ import re
 import datetime
 import random
 import math
-from django.db.models import Q, Sum, Max, Min
+from django.db.models import Q, Sum, Max, Min, Avg
 from django.contrib.auth.hashers import make_password, check_password
 
 def write_myApp(request):
@@ -332,15 +332,15 @@ def queryOriginTickData(request):
     transCode = data['transCode'] # 合约品种
 
     tradingDayList = []
-    # days_list = getBeforeWeekDays()
-    days_list = []
-    days_list.append('20191230')
-    days_list.append('20191231')
-    days_list.append('20200101')
-    days_list.append('20200102')
-    days_list.append('20200103')
-    days_list.append('20200104')
-    days_list.append('20200105')
+    days_list = getBeforeWeekDays()
+    # days_list = []
+    # days_list.append('20191230')
+    # days_list.append('20191231')
+    # days_list.append('20200101')
+    # days_list.append('20200102')
+    # days_list.append('20200103')
+    # days_list.append('20200104')
+    # days_list.append('20200105')
 
     for day in days_list:
         exchangeDate = ExchangeDate.objects.filter(INIT_DATE=day)
@@ -584,6 +584,7 @@ def saveOrder(request):
                 orderDetailRecord.bond = bond  # 计算风险度
                 rateOfRisk = round(bond/data['currentInterest'] * 100, 4)
                 orderDetailRecord.rateOfRisk = rateOfRisk
+            print("bond=", data['bond'])
 
         if 'availableFund' in data:
             orderDetailRecord.availableFund = data['availableFund']
@@ -663,7 +664,7 @@ def trainRecord(request):
     else:
         return JsonResponse({"status": "error"}, safe=False)
 
-
+# 收益率
 def getRateOfReturn(request):
     data = simplejson.loads(request.body)
     if 'userId' in data:
@@ -681,7 +682,7 @@ def getRateOfReturn(request):
     msg = {"rateOfReturn": rateOfReturn, "trainOverTime": trainOverTime}
     return JsonResponse(msg, safe=False)
 
-
+# 盈亏
 def getProfitByUserId(request):
     data = simplejson.loads(request.body)
     if 'userId' in data:
@@ -698,6 +699,7 @@ def getProfitByUserId(request):
     msg = {"allProfit": allProfit, "trainOverTime": trainOverTime}
     return JsonResponse(msg, safe=False)
 
+# 品种收益
 def getCategoryProfit(request):
     data = simplejson.loads(request.body)
     if 'userId' in data:
@@ -750,3 +752,54 @@ def getAccountRisk(request):
     msg = {"rateOfRisk": rateOfRisk}
     return JsonResponse(msg, safe=False)
 
+def getUserSituation(request):
+    data = simplejson.loads(request.body)
+    if 'userId' in data:
+        userId = data['userId']
+    else:
+        userId = request.session.get('userId')
+
+    # 最大收益率
+    maxRateOfReturn = TrainRecord.objects.filter(userId=userId).aggregate(maxRateOfReturn= Max('rateOfReturn'))
+    maxRateOfReturn = maxRateOfReturn['maxRateOfReturn']
+
+    print("最大收益率=", maxRateOfReturn)
+
+    # 盈亏比
+    profit = TrainRecord.objects.filter(userId=userId, allProfit__gt=0).aggregate(profit=Sum("allProfit")) # 盈利
+    loss = TrainRecord.objects.filter(userId=userId, allProfit__lt=0).aggregate(loss=Sum("allProfit")) # 亏损
+    profit1 = profit['profit']
+    loss1 = loss['loss']
+    profitRate =  round(abs(profit1/loss1), 4)
+
+    print("盈亏比=", profitRate)
+
+    # 平均风险度
+    avgRisk = TrainRecord.objects.filter(userId=userId).aggregate(avgRisk=Avg('rateOfRisk'))
+    avgRisk = round(avgRisk['avgRisk'], 4)
+
+    print("平均风险度=", avgRisk)
+
+    # 累计盈利次数
+    countProfit = TrainRecord.objects.filter(userId=userId, allProfit__gt=0).count()
+    # 累计亏损次数
+    countLoss = TrainRecord.objects.filter(userId=userId, allProfit__lt=0).count()
+
+    print("累计盈利次数=", countProfit)
+    print("累计亏损次数=", countLoss)
+
+    # 最大回撤率
+    maxRateOfRetrace = TrainRecord.objects.filter(userId=userId).aggregate(rateOfRetracement=Max('rateOfRetracement'))
+    maxRateOfRetrace = maxRateOfRetrace['rateOfRetracement']
+
+    print("最大回撤率=", maxRateOfRetrace)
+
+    # 累计交易手数
+    sumHandNumOb = TrainRecord.objects.filter(userId=userId).aggregate(handNum=Sum("allHandNum"))
+    sumHandNum = sumHandNumOb['handNum']
+
+    print("累计交易手数=", sumHandNum)
+
+    msg = {"maxRateOfReturn": maxRateOfReturn, "profitRate": profitRate, "avgRisk": avgRisk,
+           "countProfit": countProfit, "countLoss": countLoss, "maxRateOfRetrace": maxRateOfRetrace, "sumHandNum": sumHandNum}
+    return JsonResponse(msg, safe=False)
