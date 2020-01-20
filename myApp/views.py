@@ -749,3 +749,4 @@ def getAccountRisk(request):
     rateOfRisk = list(qs)
     msg = {"rateOfRisk": rateOfRisk}
     return JsonResponse(msg, safe=False)
+
