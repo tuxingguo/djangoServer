@@ -762,7 +762,8 @@ def getUserSituation(request):
     # 最大收益率
     maxRateOfReturn = TrainRecord.objects.filter(userId=userId).aggregate(maxRateOfReturn= Max('rateOfReturn'))
     maxRateOfReturn = maxRateOfReturn['maxRateOfReturn']
-
+    if maxRateOfReturn == None:
+        maxRateOfReturn = 0
     print("最大收益率=", maxRateOfReturn)
 
     # 盈亏比
@@ -770,13 +771,18 @@ def getUserSituation(request):
     loss = TrainRecord.objects.filter(userId=userId, allProfit__lt=0).aggregate(loss=Sum("allProfit")) # 亏损
     profit1 = profit['profit']
     loss1 = loss['loss']
-    profitRate =  round(abs(profit1/loss1), 4)
+    profitRate = 0
+    if loss1 != None:
+        profitRate =  round(abs(profit1/loss1), 4)
 
     print("盈亏比=", profitRate)
 
     # 平均风险度
     avgRisk = TrainRecord.objects.filter(userId=userId).aggregate(avgRisk=Avg('rateOfRisk'))
-    avgRisk = round(avgRisk['avgRisk'], 4)
+    avgRisk = avgRisk['avgRisk']
+    if avgRisk == None:
+        avgRisk = 0
+    avgRisk = round(avgRisk, 4)
 
     print("平均风险度=", avgRisk)
 
@@ -791,13 +797,15 @@ def getUserSituation(request):
     # 最大回撤率
     maxRateOfRetrace = TrainRecord.objects.filter(userId=userId).aggregate(rateOfRetracement=Max('rateOfRetracement'))
     maxRateOfRetrace = maxRateOfRetrace['rateOfRetracement']
-
+    if maxRateOfRetrace == None:
+        maxRateOfRetrace = 0
     print("最大回撤率=", maxRateOfRetrace)
 
     # 累计交易手数
     sumHandNumOb = TrainRecord.objects.filter(userId=userId).aggregate(handNum=Sum("allHandNum"))
     sumHandNum = sumHandNumOb['handNum']
-
+    if sumHandNum == None:
+        sumHandNum = 0
     print("累计交易手数=", sumHandNum)
 
     msg = {"maxRateOfReturn": maxRateOfReturn, "profitRate": profitRate, "avgRisk": avgRisk,
